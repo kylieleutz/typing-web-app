@@ -176,6 +176,103 @@
       margin-top: 1vh;
     }
 
+    /* ── Word Typing mode ── */
+    #word-box-row {
+      display: flex;
+      gap: clamp(6px, 2vw, 16px);
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .letter-box {
+      width: clamp(70px, 18vw, 140px);
+      height: clamp(70px, 18vw, 140px);
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(2.2rem, 8vw, 5.5rem);
+      font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
+      color: rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.08);
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+      text-transform: uppercase;
+    }
+
+    .letter-box.active {
+      border-color: #FFD93D;
+      background: rgba(255,217,61,0.15);
+      box-shadow: 0 0 12px rgba(255,217,61,0.4);
+      color: rgba(255,217,61,0.55);
+    }
+
+    .letter-box.correct-letter {
+      border-color: #6BCB77;
+      background: rgba(107,203,119,0.25);
+      color: #6BCB77;
+    }
+
+    .letter-box.shake {
+      animation: shake 0.4s ease;
+    }
+
+    .letter-box.pop {
+      animation: pop 0.3s ease;
+    }
+
+    #word-box-row.bounce-all {
+      animation: bounce 0.5s ease;
+    }
+
+    #word-level-label {
+      font-size: clamp(0.85rem, 2vw, 1.2rem);
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    #word-img-wrap {
+      width: clamp(140px, 30vw, 260px);
+      height: clamp(140px, 30vw, 260px);
+      border-radius: 24px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid rgba(255,255,255,0.12);
+    }
+
+    #word-img-wrap.pop {
+      animation: pop 0.35s ease;
+    }
+
+    #word-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    #word-img-wrap .img-fallback {
+      font-size: clamp(4rem, 14vw, 9rem);
+      line-height: 1;
+    }
+
+    #word-img-wrap .img-loading {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255,255,255,0.15);
+      border-top-color: rgba(255,255,255,0.7);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     /* ── Settings modal ── */
     #settings-overlay {
       position: fixed;
@@ -298,6 +395,77 @@
     #mute-toggle input:checked + .track + .thumb {
       transform: translateX(24px);
     }
+
+    /* ── Difficulty modal ── */
+    #diff-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    #diff-modal {
+      background: #16213e;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 24px;
+      padding: 36px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      min-width: 280px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    }
+
+    #diff-modal h2 {
+      color: #fff;
+      font-size: 1.6rem;
+      letter-spacing: 1px;
+    }
+
+    #diff-options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .diff-btn {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 16px;
+      padding: 14px 22px;
+      font-size: 1.1rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, transform 0.1s;
+      text-align: left;
+      line-height: 1.4;
+    }
+
+    .diff-btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .diff-btn:active {
+      transform: scale(0.97);
+    }
+
+    .diff-btn.selected {
+      background: rgba(255,255,255,0.2);
+      border-color: #fff;
+    }
+
+    .diff-btn small {
+      display: block;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.55);
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body>
@@ -308,6 +476,7 @@
     <button class="btn" id="mode-btn" onclick="toggleMode()">🔤 Letter Hunt</button>
     <div id="score-display" style="display:none">⭐ 0</div>
     <div style="display:flex;gap:10px">
+      <button class="btn" id="level-btn" onclick="openDiffModal()" style="display:none">🌱 Easy</button>
       <button class="btn" id="settings-btn" onclick="openSettings()">⚙️ Settings</button>
       <button class="btn" id="fullscreen-btn" onclick="goFullScreen()">⛶ Full Screen</button>
     </div>
@@ -338,16 +507,30 @@
     </div>
   </div>
 
+  <div id="diff-overlay" style="display:none" onclick="diffOverlayClick(event)">
+    <div id="diff-modal">
+      <h2>Choose a Level</h2>
+      <div id="diff-options">
+        <button class="diff-btn" id="diff-easy" onclick="setWordDifficulty('easy')">🌱 Easy<small>Short CVC words (cat, dog, hat)</small></button>
+        <button class="diff-btn" id="diff-medium" onclick="setWordDifficulty('medium')">⭐ Medium<small>Common sight words (the, stop, look)</small></button>
+        <button class="diff-btn" id="diff-advanced" onclick="setWordDifficulty('advanced')">🚀 Advanced<small>Consonant blends (flag, drip, crab)</small></button>
+      </div>
+    </div>
+  </div>
+
   <div id="main">
     <div id="prompt">Press this letter:</div>
     <div id="letter-display">A</div>
     <div id="free-hint" style="display:none">Type letters to build a word (up to 10) &nbsp;•&nbsp; Backspace to delete &nbsp;•&nbsp; Esc to clear</div>
     <div id="char-counter" style="display:none"></div>
+    <div id="word-img-wrap" style="display:none"><div class="img-loading"></div></div>
+    <div id="word-box-row" style="display:none"></div>
+    <div id="word-level-label" style="display:none"></div>
   </div>
 
   <script>
     // ── State ──────────────────────────────────────────
-    let mode = 'hunt';          // 'hunt' | 'free'
+    let mode = 'hunt';          // 'hunt' | 'free' | 'word'
     let targetLetter = 'A';
     let score = 0;
     let isWaiting = false;
@@ -360,6 +543,60 @@
 
     // Shuffled alphabet queue
     let letterQueue = [];
+
+    // Word typing state
+    let wordDifficulty = 'easy';
+    let currentWord = '';
+    let wordProgress = 0;
+    let wordQueue = [];
+
+    // ── Word lists ─────────────────────────────────────
+    const WORDS = {
+      easy: [
+        'cat','dog','hat','bat','mat','bag','pan',
+        'bed','red','hen','pet','set','ten','leg','web',
+        'sit','bit','pig','big','win','tip',
+        'hot','pot','top','hop','mop','fox','box','log',
+        'bug','cup','fun','run','sun','cut','mud','hug'
+      ],
+      medium: [
+        'the','stop','look','said','like','come','have','they',
+        'with','here','from','this','that','when','your','will',
+        'she','make','went','jump','play','help','know','name',
+        'want','some','good','time','than','then','many','long'
+      ],
+      advanced: [
+        'flag','drip','lamp','frog','flip','drum','clap','grip',
+        'flat','trip','slip','drop','clip','plan','sled','snap',
+        'step','swim','crab','crop','grin','plot','skin','skip',
+        'slam','slim','snag','spin','spot','stem','swap','brag',
+        'bled','bred','clam','clop','cram','drab','fled','fret',
+        'glob','glum','grab','grit','pram','prop','scam','scat'
+      ]
+    };
+
+    const EMOJI = {
+      // Easy - CVC
+      cat:'🐱', dog:'🐶', hat:'🎩', bat:'🦇', mat:'🟫', bag:'👜', pan:'🍳',
+      bed:'🛏️', red:'🔴', hen:'🐔', pet:'🐾', set:'⚙️', ten:'🔟', leg:'🦵', web:'🕸️',
+      sit:'🪑', bit:'🔩', pig:'🐷', big:'🐘', win:'🏆', tip:'💡',
+      hot:'🔥', pot:'🍯', top:'🪀', hop:'🐸', mop:'🧹', fox:'🦊', box:'📦', log:'🪵',
+      bug:'🐛', cup:'☕', fun:'🎊', run:'🏃', sun:'☀️', cut:'✂️', mud:'🟤', hug:'🤗',
+      // Medium - sight words
+      the:'📖', stop:'🛑', look:'👀', said:'💬', like:'❤️', come:'🤗', have:'🎁',
+      they:'👫', with:'🤝', here:'📍', from:'📬', this:'☝️', that:'👉', when:'🕐',
+      your:'🫵', will:'✨', she:'👧', make:'🔨', went:'👣', jump:'🦘', play:'🎮',
+      help:'🙋', know:'💡', name:'📛', want:'😍', some:'🫙', good:'⭐', time:'⏱️',
+      than:'⚖️', then:'➡️', many:'🔢', long:'📏',
+      // Advanced - blends
+      flag:'🚩', drip:'💧', lamp:'🪔', frog:'🐸', flip:'🤸', drum:'🥁', clap:'👏',
+      grip:'✊', flat:'📋', trip:'✈️', slip:'🧊', drop:'🫧', clip:'📎', plan:'📝',
+      sled:'🛷', snap:'📸', step:'👣', swim:'🏊', crab:'🦀', crop:'🌾', grin:'😁',
+      plot:'🗺️', skin:'🧴', skip:'⛹️', slam:'🚪', slim:'📏', snag:'🪝', spin:'🌀',
+      spot:'🔍', stem:'🌿', swap:'🔄', brag:'🏆', bled:'🩸', bred:'🐣', clam:'🦪',
+      clop:'🐴', cram:'📚', drab:'🩶', fled:'🏃', fret:'😟', glob:'🫧', glum:'😔',
+      grab:'✋', grit:'💪', pram:'👶', prop:'🎭', scam:'⚠️', scat:'🎵'
+    };
 
     function buildQueue() {
       const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -423,6 +660,11 @@
     const charCounterEl = document.getElementById('char-counter');
     const modeBtnEl     = document.getElementById('mode-btn');
     const starsEl       = document.getElementById('stars-container');
+    const wordBoxRowEl  = document.getElementById('word-box-row');
+    const wordImgWrapEl = document.getElementById('word-img-wrap');
+    const wordLevelEl   = document.getElementById('word-level-label');
+    const levelBtnEl    = document.getElementById('level-btn');
+    const settingsBtnEl = document.getElementById('settings-btn');
 
     function setLetter(l) {
       letterEl.textContent = l;
@@ -465,35 +707,71 @@
 
     // ── Mode toggle ───────────────────────────────────
     function toggleMode() {
-      mode = (mode === 'hunt') ? 'free' : 'hunt';
+      if (mode === 'hunt')       mode = 'free';
+      else if (mode === 'free')  mode = 'word';
+      else                       mode = 'hunt';
+
       score = 0;
       isWaiting = false;
 
       if (mode === 'hunt') {
+        hideWordUI();
         letterQueue = buildQueue();
         targetLetter = getNextLetter();
         letterEl.innerHTML = targetLetter;
         letterEl.style.fontSize = '';
         letterEl.style.color = '#fff';
+        letterEl.style.display = '';
         promptEl.style.display = '';
         freeHintEl.style.display = 'none';
         charCounterEl.style.display = 'none';
         scoreEl.style.display = '';
+        settingsBtnEl.style.display = '';
         updateScore();
         modeBtnEl.textContent = '🔤 Letter Hunt';
-      } else {
+      } else if (mode === 'free') {
+        hideWordUI();
         typedText = '';
         typedColors = [];
         letterEl.innerHTML = '?';
         letterEl.style.fontSize = '';
         letterEl.style.color = '#fff';
+        letterEl.style.display = '';
         promptEl.style.display = 'none';
         freeHintEl.style.display = '';
         charCounterEl.style.display = '';
         charCounterEl.textContent = '';
         scoreEl.style.display = 'none';
+        settingsBtnEl.style.display = '';
         modeBtnEl.textContent = '🔡 Free Typing';
+      } else {
+        // Word mode
+        setupWordMode();
+        modeBtnEl.textContent = '📝 Word Typing';
       }
+    }
+
+    function setupWordMode() {
+      typedText = '';
+      letterEl.style.display = 'none';
+      promptEl.style.display = 'none';
+      freeHintEl.style.display = 'none';
+      charCounterEl.style.display = 'none';
+      scoreEl.style.display = 'none';
+      settingsBtnEl.style.display = 'none';
+      wordImgWrapEl.style.display = '';
+      wordBoxRowEl.style.display = 'flex';
+      wordLevelEl.style.display = '';
+      levelBtnEl.style.display = '';
+      openDiffModal();
+    }
+
+    function hideWordUI() {
+      wordImgWrapEl.style.display = 'none';
+      wordBoxRowEl.style.display = 'none';
+      wordLevelEl.style.display = 'none';
+      levelBtnEl.style.display = 'none';
+      closeDiffModal();
     }
 
     // ── Key handling ──────────────────────────────────
@@ -534,11 +812,200 @@
       soundEnabled = checkbox.checked;
     }
 
-    document.addEventListener('keydown', (e) => {
-      // Close settings modal on Escape regardless of mode
-      if (e.key === 'Escape' && document.getElementById('settings-overlay').style.display !== 'none') {
-        closeSettings();
+    // ── Difficulty modal ──────────────────────────────
+    function openDiffModal() {
+      document.querySelectorAll('.diff-btn').forEach(btn => {
+        btn.classList.remove('selected');
+      });
+      const activeBtn = document.getElementById('diff-' + wordDifficulty);
+      if (activeBtn) activeBtn.classList.add('selected');
+      document.getElementById('diff-overlay').style.display = 'flex';
+    }
+
+    function closeDiffModal() {
+      document.getElementById('diff-overlay').style.display = 'none';
+    }
+
+    function diffOverlayClick(e) {
+      if (e.target === document.getElementById('diff-overlay')) closeDiffModal();
+    }
+
+    const DIFF_LABELS = { easy: '🌱 Easy', medium: '⭐ Medium', advanced: '🚀 Advanced' };
+
+    function setWordDifficulty(level) {
+      wordDifficulty = level;
+      wordQueue = shuffleWords(WORDS[level].slice());
+      levelBtnEl.textContent = DIFF_LABELS[level];
+      wordLevelEl.textContent = DIFF_LABELS[level];
+      closeDiffModal();
+      loadNextWord();
+    }
+
+    function shuffleWords(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // ── Word image fetching ───────────────────────────
+    // Maps words to a better Wikipedia article title where needed.
+    // null = no good image exists, fall back to emoji.
+    const WIKI_TERM = {
+      // abstract sight words → concrete Wikipedia articles
+      the: null, said: null, like: 'heart', come: null, have: null,
+      they: 'people', with: null, here: 'location', from: 'letter mail',
+      this: null, that: null, when: 'clock', your: null, will: null,
+      she: 'girl', make: 'hammer', went: 'walking', help: 'volunteering',
+      know: 'brain', name: 'name tag', want: null, some: null,
+      good: 'thumbs up', time: 'clock', than: 'weighing scale',
+      then: null, many: null, long: 'ruler',
+      // easy words with better emoji fallback
+      sun: null, hat: null, fun: null, leg: null,
+      // abstract blends
+      grit: 'gravel', drab: 'gray', fret: 'anxiety', glob: 'bubble',
+      glum: 'sadness', bled: 'blood', bred: 'selective breeding',
+      clop: 'horse', scam: 'fraud', scat: 'jazz', pram: 'baby carriage',
+      prop: 'theatrical prop', snag: 'fishing hook', slim: 'slender',
+      slam: 'door', swap: 'trade', brag: 'boasting', fled: 'running',
+      cram: 'studying', grip: 'handle', flat: 'apartment', clip: 'paper clip',
+      plan: 'blueprint', stem: 'plant stem', spot: 'dalmatian',
+      skin: 'skin', spin: 'spinning top', drop: 'water drop',
+      slip: 'ice slip', crop: 'harvest', plot: 'garden plot'
+    };
+
+    async function fetchWordImage(word) {
+      // Show spinner while loading
+      wordImgWrapEl.innerHTML = '<div class="img-loading"></div>';
+
+      // Determine what to search for
+      const searchTerm = word in WIKI_TERM ? WIKI_TERM[word] : word;
+
+      if (!searchTerm) {
+        // Abstract word with no good image — use emoji fallback
+        showImageFallback(word);
         return;
+      }
+
+      try {
+        const res = await fetch(
+          `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTerm)}`,
+          { headers: { 'Accept': 'application/json' } }
+        );
+        if (!res.ok) throw new Error('not found');
+        const data = await res.json();
+        const imgUrl = data.thumbnail?.source || data.originalimage?.source;
+        if (!imgUrl) throw new Error('no image');
+
+        const img = document.createElement('img');
+        img.alt = word;
+        img.onload = () => {
+          wordImgWrapEl.innerHTML = '';
+          wordImgWrapEl.appendChild(img);
+          wordImgWrapEl.classList.remove('pop');
+          void wordImgWrapEl.offsetWidth;
+          wordImgWrapEl.classList.add('pop');
+          wordImgWrapEl.addEventListener('animationend', () => wordImgWrapEl.classList.remove('pop'), { once: true });
+        };
+        img.onerror = () => showImageFallback(word);
+        img.src = imgUrl;
+      } catch {
+        showImageFallback(word);
+      }
+    }
+
+    function showImageFallback(word) {
+      wordImgWrapEl.innerHTML = `<span class="img-fallback">${EMOJI[word] || '❓'}</span>`;
+      wordImgWrapEl.classList.remove('pop');
+      void wordImgWrapEl.offsetWidth;
+      wordImgWrapEl.classList.add('pop');
+      wordImgWrapEl.addEventListener('animationend', () => wordImgWrapEl.classList.remove('pop'), { once: true });
+    }
+
+    // ── Word Typing logic ─────────────────────────────
+    function loadNextWord() {
+      if (wordQueue.length === 0) wordQueue = shuffleWords(WORDS[wordDifficulty].slice());
+      currentWord = wordQueue.pop();
+      wordProgress = 0;
+
+      // Fetch and display clip art image
+      fetchWordImage(currentWord);
+
+      // Build letter boxes pre-filled with ghost letters
+      wordBoxRowEl.innerHTML = '';
+      for (let i = 0; i < currentWord.length; i++) {
+        const box = document.createElement('div');
+        box.className = 'letter-box' + (i === 0 ? ' active' : '');
+        box.id = 'box-' + i;
+        box.textContent = currentWord[i].toUpperCase();
+        wordBoxRowEl.appendChild(box);
+      }
+    }
+
+    function handleWordTyping(key) {
+      if (wordProgress >= currentWord.length) return;
+      const expected = currentWord[wordProgress];
+      const box = document.getElementById('box-' + wordProgress);
+
+      if (key === expected) {
+        // Correct letter — text already shown as ghost, just light it up
+        box.classList.remove('active');
+        box.classList.add('correct-letter');
+        playPop();
+        wordProgress++;
+
+        if (wordProgress === currentWord.length) {
+          handleWordComplete();
+        } else {
+          const nextBox = document.getElementById('box-' + wordProgress);
+          nextBox.classList.add('active');
+          nextBox.classList.remove('pop');
+          void nextBox.offsetWidth;
+          nextBox.classList.add('pop');
+          nextBox.addEventListener('animationend', () => nextBox.classList.remove('pop'), { once: true });
+        }
+      } else {
+        // Wrong letter
+        flashBackground('incorrect');
+        playError();
+        box.classList.remove('shake');
+        void box.offsetWidth;
+        box.classList.add('shake');
+        box.addEventListener('animationend', () => box.classList.remove('shake'), { once: true });
+      }
+    }
+
+    function handleWordComplete() {
+      const rect = wordBoxRowEl.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      flashBackground('correct');
+      playSuccess();
+      burstStars(cx, cy);
+
+      // Bounce all boxes together
+      wordBoxRowEl.classList.remove('bounce-all');
+      void wordBoxRowEl.offsetWidth;
+      wordBoxRowEl.classList.add('bounce-all');
+      wordBoxRowEl.addEventListener('animationend', () => wordBoxRowEl.classList.remove('bounce-all'), { once: true });
+
+      isWaiting = true;
+      setTimeout(() => {
+        isWaiting = false;
+        loadNextWord();
+      }, 900);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      // Close modals on Escape
+      if (e.key === 'Escape') {
+        if (document.getElementById('settings-overlay').style.display !== 'none') {
+          closeSettings(); return;
+        }
+        if (document.getElementById('diff-overlay').style.display !== 'none') {
+          closeDiffModal(); return;
+        }
       }
 
       if (mode === 'free') {
@@ -549,6 +1016,14 @@
         isWaiting = true;
         setTimeout(() => { isWaiting = false; }, freeDelayMs);
         handleFreeTyping(e.key.toUpperCase());
+        return;
+      }
+
+      if (mode === 'word') {
+        if (!/^[a-zA-Z]$/.test(e.key)) return;
+        if (isWaiting) return;
+        if (document.getElementById('diff-overlay').style.display !== 'none') return;
+        handleWordTyping(e.key.toLowerCase());
         return;
       }
 
