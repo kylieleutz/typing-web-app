@@ -162,10 +162,18 @@
 
     /* ── Free Typing mode hint ── */
     #free-hint {
-      font-size: clamp(1rem, 2.5vw, 1.8rem);
+      font-size: clamp(0.8rem, 2vw, 1.4rem);
       color: rgba(255,255,255,0.4);
       letter-spacing: 1px;
       margin-top: 2vh;
+    }
+
+    /* ── Free Typing char counter ── */
+    #char-counter {
+      font-size: clamp(0.9rem, 2vw, 1.4rem);
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 2px;
+      margin-top: 1vh;
     }
   </style>
 </head>
@@ -182,7 +190,8 @@
   <div id="main">
     <div id="prompt">Press this letter:</div>
     <div id="letter-display">A</div>
-    <div id="free-hint" style="display:none">Press any letter key!</div>
+    <div id="free-hint" style="display:none">Type letters to build a word (up to 10) &nbsp;•&nbsp; Backspace to delete &nbsp;•&nbsp; Esc to clear</div>
+    <div id="char-counter" style="display:none"></div>
   </div>
 
   <script>
@@ -192,6 +201,11 @@
     let score = 0;
     let isWaiting = false;
     const DELAY_MS = 800;
+
+    // Free typing buffer
+    let typedText = '';
+    let typedColors = [];
+    const MAX_CHARS = 10;
 
     // Shuffled alphabet queue
     let letterQueue = [];
@@ -250,12 +264,13 @@
     }
 
     // ── DOM helpers ───────────────────────────────────
-    const letterEl   = document.getElementById('letter-display');
-    const promptEl   = document.getElementById('prompt');
-    const scoreEl    = document.getElementById('score-display');
-    const freeHintEl = document.getElementById('free-hint');
-    const modeBtnEl  = document.getElementById('mode-btn');
-    const starsEl    = document.getElementById('stars-container');
+    const letterEl      = document.getElementById('letter-display');
+    const promptEl      = document.getElementById('prompt');
+    const scoreEl       = document.getElementById('score-display');
+    const freeHintEl    = document.getElementById('free-hint');
+    const charCounterEl = document.getElementById('char-counter');
+    const modeBtnEl     = document.getElementById('mode-btn');
+    const starsEl       = document.getElementById('stars-container');
 
     function setLetter(l) {
       letterEl.textContent = l;
@@ -305,20 +320,27 @@
       if (mode === 'hunt') {
         letterQueue = buildQueue();
         targetLetter = getNextLetter();
-        setLetter(targetLetter);
+        letterEl.innerHTML = targetLetter;
+        letterEl.style.fontSize = '';
+        letterEl.style.color = '#fff';
         promptEl.style.display = '';
         freeHintEl.style.display = 'none';
+        charCounterEl.style.display = 'none';
         scoreEl.style.display = '';
         updateScore();
         modeBtnEl.textContent = '🔤 Letter Hunt';
-        letterEl.style.color = '#fff';
       } else {
-        setLetter('?');
+        typedText = '';
+        typedColors = [];
+        letterEl.innerHTML = '?';
+        letterEl.style.fontSize = '';
+        letterEl.style.color = '#fff';
         promptEl.style.display = 'none';
         freeHintEl.style.display = '';
+        charCounterEl.style.display = '';
+        charCounterEl.textContent = '';
         scoreEl.style.display = 'none';
         modeBtnEl.textContent = '🔡 Free Typing';
-        letterEl.style.color = '#fff';
       }
     }
 
@@ -330,28 +352,76 @@
     let colorIndex = 0;
 
     document.addEventListener('keydown', (e) => {
+      if (mode === 'free') {
+        if (e.key === 'Backspace') { handleBackspace(); return; }
+        if (e.key === 'Escape')    { clearFreeText();   return; }
+        if (!/^[a-zA-Z]$/.test(e.key)) return;
+        handleFreeTyping(e.key.toUpperCase());
+        return;
+      }
+
+      // Hunt mode
       if (isWaiting) return;
-      // Only handle letter keys (a-z / A-Z)
       if (!/^[a-zA-Z]$/.test(e.key)) return;
-
-      const pressed = e.key.toUpperCase();
-
       isWaiting = true;
       setTimeout(() => { isWaiting = false; }, DELAY_MS);
-
-      if (mode === 'free') {
-        handleFreeTyping(pressed);
-      } else {
-        handleHunt(pressed);
-      }
+      handleHunt(e.key.toUpperCase());
     });
 
     function handleFreeTyping(letter) {
-      letterEl.style.color = COLORS[colorIndex % COLORS.length];
+      if (typedText.length >= MAX_CHARS) return;
+      const color = COLORS[colorIndex % COLORS.length];
       colorIndex++;
-      setLetter(letter);
+      typedText += letter;
+      typedColors.push(color);
+      updateFreeDisplay();
       triggerAnimation('pop');
       playPop();
+    }
+
+    function handleBackspace() {
+      if (typedText.length === 0) return;
+      typedText = typedText.slice(0, -1);
+      typedColors.pop();
+      updateFreeDisplay();
+    }
+
+    function clearFreeText() {
+      if (typedText.length === 0) return;
+      typedText = '';
+      typedColors = [];
+      updateFreeDisplay();
+    }
+
+    function updateFreeDisplay() {
+      const len = typedText.length;
+      if (len === 0) {
+        letterEl.innerHTML = '?';
+        letterEl.style.fontSize = '';
+        letterEl.style.color = '#fff';
+        charCounterEl.textContent = '';
+        return;
+      }
+
+      // Render each letter in its assigned color
+      letterEl.innerHTML = typedText.split('').map((ch, i) =>
+        `<span style="color:${typedColors[i]}">${ch}</span>`
+      ).join('');
+      letterEl.style.color = '';
+
+      // Scale font size down as more characters appear
+      let fontSize;
+      if (len <= 1) fontSize = 'clamp(120px, 40vw, 45vh)';
+      else if (len <= 3) fontSize = 'clamp(80px, 26vw, 30vh)';
+      else if (len <= 6) fontSize = 'clamp(55px, 16vw, 20vh)';
+      else              fontSize = 'clamp(38px, 10vw, 14vh)';
+      letterEl.style.fontSize = fontSize;
+
+      // Show remaining characters
+      const remaining = MAX_CHARS - len;
+      charCounterEl.textContent = remaining > 0
+        ? `${len} / ${MAX_CHARS}`
+        : `${MAX_CHARS} / ${MAX_CHARS} — press Esc to clear`;
     }
 
     function handleHunt(pressed) {
