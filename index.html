@@ -351,11 +351,16 @@
     ];
     let colorIndex = 0;
 
+    const FREE_DELAY_MS = 400;
+
     document.addEventListener('keydown', (e) => {
       if (mode === 'free') {
         if (e.key === 'Backspace') { handleBackspace(); return; }
         if (e.key === 'Escape')    { clearFreeText();   return; }
         if (!/^[a-zA-Z]$/.test(e.key)) return;
+        if (isWaiting) return;
+        isWaiting = true;
+        setTimeout(() => { isWaiting = false; }, FREE_DELAY_MS);
         handleFreeTyping(e.key.toUpperCase());
         return;
       }
