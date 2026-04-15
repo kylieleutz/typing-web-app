@@ -175,6 +175,78 @@
       letter-spacing: 2px;
       margin-top: 1vh;
     }
+
+    /* ── Settings modal ── */
+    #settings-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    #settings-modal {
+      background: #16213e;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 24px;
+      padding: 36px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      min-width: 320px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    }
+
+    #settings-modal h2 {
+      color: #fff;
+      font-size: 1.6rem;
+      letter-spacing: 1px;
+    }
+
+    #settings-modal p {
+      color: rgba(255,255,255,0.5);
+      font-size: 0.95rem;
+      text-align: center;
+    }
+
+    #speed-options {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .speed-btn {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 999px;
+      padding: 10px 22px;
+      font-size: 1.1rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, transform 0.1s;
+    }
+
+    .speed-btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .speed-btn:active {
+      transform: scale(0.95);
+    }
+
+    .speed-btn.selected {
+      background: rgba(255,255,255,0.25);
+      border-color: #fff;
+    }
+
+    #settings-close {
+      margin-top: 8px;
+    }
   </style>
 </head>
 <body>
@@ -184,7 +256,24 @@
   <div id="top-bar">
     <button class="btn" id="mode-btn" onclick="toggleMode()">🔤 Letter Hunt</button>
     <div id="score-display" style="display:none">⭐ 0</div>
-    <button class="btn" id="fullscreen-btn" onclick="goFullScreen()">⛶ Full Screen</button>
+    <div style="display:flex;gap:10px">
+      <button class="btn" id="settings-btn" onclick="openSettings()">⚙️ Speed</button>
+      <button class="btn" id="fullscreen-btn" onclick="goFullScreen()">⛶ Full Screen</button>
+    </div>
+  </div>
+
+  <div id="settings-overlay" style="display:none" onclick="overlayClick(event)">
+    <div id="settings-modal">
+      <h2>Typing Speed</h2>
+      <p>Delay between keystrokes in Free Typing mode</p>
+      <div id="speed-options">
+        <button class="speed-btn" data-ms="1200" onclick="setSpeed(this)">🐢 Slow</button>
+        <button class="speed-btn" data-ms="700"  onclick="setSpeed(this)">🚶 Medium</button>
+        <button class="speed-btn" data-ms="350"  onclick="setSpeed(this)">🏃 Fast</button>
+        <button class="speed-btn" data-ms="150"  onclick="setSpeed(this)">⚡ Very Fast</button>
+      </div>
+      <button class="btn" id="settings-close" onclick="closeSettings()">Done</button>
+    </div>
   </div>
 
   <div id="main">
@@ -351,16 +440,45 @@
     ];
     let colorIndex = 0;
 
-    const FREE_DELAY_MS = 400;
+    let freeDelayMs = 1200;  // default: Slow
+
+    // ── Settings modal ────────────────────────────────
+    function openSettings() {
+      // Mark the currently selected speed button
+      document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.classList.toggle('selected', parseInt(btn.dataset.ms) === freeDelayMs);
+      });
+      document.getElementById('settings-overlay').style.display = 'flex';
+    }
+
+    function closeSettings() {
+      document.getElementById('settings-overlay').style.display = 'none';
+    }
+
+    function overlayClick(e) {
+      if (e.target === document.getElementById('settings-overlay')) closeSettings();
+    }
+
+    function setSpeed(btn) {
+      freeDelayMs = parseInt(btn.dataset.ms);
+      document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    }
 
     document.addEventListener('keydown', (e) => {
+      // Close settings modal on Escape regardless of mode
+      if (e.key === 'Escape' && document.getElementById('settings-overlay').style.display !== 'none') {
+        closeSettings();
+        return;
+      }
+
       if (mode === 'free') {
         if (e.key === 'Backspace') { handleBackspace(); return; }
         if (e.key === 'Escape')    { clearFreeText();   return; }
         if (!/^[a-zA-Z]$/.test(e.key)) return;
         if (isWaiting) return;
         isWaiting = true;
-        setTimeout(() => { isWaiting = false; }, FREE_DELAY_MS);
+        setTimeout(() => { isWaiting = false; }, freeDelayMs);
         handleFreeTyping(e.key.toUpperCase());
         return;
       }
