@@ -247,6 +247,57 @@
     #settings-close {
       margin-top: 8px;
     }
+
+    #mute-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: #fff;
+      font-size: 1.1rem;
+    }
+
+    #mute-toggle {
+      position: relative;
+      width: 52px;
+      height: 28px;
+      cursor: pointer;
+    }
+
+    #mute-toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    #mute-toggle .track {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.25);
+      border-radius: 999px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    #mute-toggle input:checked + .track {
+      background: rgba(168,255,120,0.35);
+      border-color: #A8FF78;
+    }
+
+    #mute-toggle .thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+      pointer-events: none;
+    }
+
+    #mute-toggle input:checked + .track + .thumb {
+      transform: translateX(24px);
+    }
   </style>
 </head>
 <body>
@@ -257,15 +308,25 @@
     <button class="btn" id="mode-btn" onclick="toggleMode()">🔤 Letter Hunt</button>
     <div id="score-display" style="display:none">⭐ 0</div>
     <div style="display:flex;gap:10px">
-      <button class="btn" id="settings-btn" onclick="openSettings()">⚙️ Speed</button>
+      <button class="btn" id="settings-btn" onclick="openSettings()">⚙️ Settings</button>
       <button class="btn" id="fullscreen-btn" onclick="goFullScreen()">⛶ Full Screen</button>
     </div>
   </div>
 
   <div id="settings-overlay" style="display:none" onclick="overlayClick(event)">
     <div id="settings-modal">
-      <h2>Typing Speed</h2>
-      <p>Delay between keystrokes in Free Typing mode</p>
+      <h2>Settings</h2>
+
+      <div id="mute-row">
+        <span>Sound</span>
+        <label id="mute-toggle">
+          <input type="checkbox" id="sound-toggle" checked onchange="toggleSound(this)">
+          <div class="track"></div>
+          <div class="thumb"></div>
+        </label>
+      </div>
+
+      <p>Typing speed (Free Typing mode)</p>
       <div id="speed-options">
         <button class="speed-btn" data-ms="2500" onclick="setSpeed(this)">🐌 Extra Slow</button>
         <button class="speed-btn" data-ms="1200" onclick="setSpeed(this)">🐢 Slow</button>
@@ -324,6 +385,7 @@
     }
 
     function playTone(frequency, duration, type = 'sine', gainVal = 0.4) {
+      if (!soundEnabled) return;
       try {
         const ctx = getAudioCtx();
         const osc = ctx.createOscillator();
@@ -442,6 +504,7 @@
     let colorIndex = 0;
 
     let freeDelayMs = 1200;  // default: Slow
+    let soundEnabled = true;
 
     // ── Settings modal ────────────────────────────────
     function openSettings() {
@@ -449,6 +512,7 @@
       document.querySelectorAll('.speed-btn').forEach(btn => {
         btn.classList.toggle('selected', parseInt(btn.dataset.ms) === freeDelayMs);
       });
+      document.getElementById('sound-toggle').checked = soundEnabled;
       document.getElementById('settings-overlay').style.display = 'flex';
     }
 
@@ -464,6 +528,10 @@
       freeDelayMs = parseInt(btn.dataset.ms);
       document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
+    }
+
+    function toggleSound(checkbox) {
+      soundEnabled = checkbox.checked;
     }
 
     document.addEventListener('keydown', (e) => {
