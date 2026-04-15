@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Letter Practice</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Arial Rounded MT Bold', 'Arial', sans-serif;
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      transition: background 0.3s;
+    }
+
+    body.correct {
+      background: #0a4a1a;
+    }
+
+    body.incorrect {
+      background: #4a0a0a;
+    }
+
+    /* ── Top bar ── */
+    #top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 18px;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    .btn {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 999px;
+      padding: 8px 18px;
+      font-size: 1rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: rgba(255,255,255,0.25);
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    #score-display {
+      font-size: 1.4rem;
+      color: #fff;
+      font-weight: bold;
+      letter-spacing: 1px;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    /* ── Main content ── */
+    #main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2vh;
+      text-align: center;
+    }
+
+    #prompt {
+      font-size: clamp(1.2rem, 3vw, 2.2rem);
+      color: rgba(255,255,255,0.75);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      min-height: 1.5em;
+      transition: opacity 0.2s;
+    }
+
+    #letter-display {
+      font-size: clamp(120px, 40vw, 45vh);
+      font-weight: 900;
+      line-height: 1;
+      color: #fff;
+      text-shadow: 0 0 60px rgba(255,255,255,0.3);
+      transition: color 0.15s, transform 0.15s;
+      will-change: transform;
+    }
+
+    #letter-display.bounce {
+      animation: bounce 0.5s ease;
+    }
+
+    #letter-display.shake {
+      animation: shake 0.4s ease;
+    }
+
+    #letter-display.pop {
+      animation: pop 0.3s ease;
+    }
+
+    /* ── Animations ── */
+    @keyframes bounce {
+      0%   { transform: scale(1); }
+      30%  { transform: scale(1.35); }
+      60%  { transform: scale(0.9); }
+      80%  { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%       { transform: translateX(-18px); }
+      40%       { transform: translateX(18px); }
+      60%       { transform: translateX(-12px); }
+      80%       { transform: translateX(12px); }
+    }
+
+    @keyframes pop {
+      0%   { transform: scale(0.6); opacity: 0.4; }
+      70%  { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+
+    /* ── Stars burst ── */
+    #stars-container {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .star {
+      position: absolute;
+      font-size: 2.5rem;
+      animation: flyOut 0.8s ease forwards;
+    }
+
+    @keyframes flyOut {
+      0%   { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+      100% { transform: translate(var(--tx), var(--ty)) scale(1.5); opacity: 0; }
+    }
+
+    /* ── Free Typing mode hint ── */
+    #free-hint {
+      font-size: clamp(1rem, 2.5vw, 1.8rem);
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 1px;
+      margin-top: 2vh;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="stars-container"></div>
+
+  <div id="top-bar">
+    <button class="btn" id="mode-btn" onclick="toggleMode()">🔤 Letter Hunt</button>
+    <div id="score-display" style="display:none">⭐ 0</div>
+    <button class="btn" id="fullscreen-btn" onclick="goFullScreen()">⛶ Full Screen</button>
+  </div>
+
+  <div id="main">
+    <div id="prompt">Press this letter:</div>
+    <div id="letter-display">A</div>
+    <div id="free-hint" style="display:none">Press any letter key!</div>
+  </div>
+
+  <script>
+    // ── State ──────────────────────────────────────────
+    let mode = 'hunt';          // 'hunt' | 'free'
+    let targetLetter = 'A';
+    let score = 0;
+    let isWaiting = false;
+    const DELAY_MS = 800;
+
+    // Shuffled alphabet queue
+    let letterQueue = [];
+
+    function buildQueue() {
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+      // Fisher-Yates shuffle
+      for (let i = letters.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [letters[i], letters[j]] = [letters[j], letters[i]];
+      }
+      return letters;
+    }
+
+    function getNextLetter() {
+      if (letterQueue.length === 0) letterQueue = buildQueue();
+      return letterQueue.pop();
+    }
+
+    // ── Audio ──────────────────────────────────────────
+    let audioCtx = null;
+
+    function getAudioCtx() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return audioCtx;
+    }
+
+    function playTone(frequency, duration, type = 'sine', gainVal = 0.4) {
+      try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = type;
+        osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+        gain.gain.setValueAtTime(gainVal, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + duration);
+      } catch (e) { /* audio not available */ }
+    }
+
+    function playSuccess() {
+      playTone(523, 0.12);  // C5
+      setTimeout(() => playTone(659, 0.12), 110);  // E5
+      setTimeout(() => playTone(784, 0.25), 220);  // G5
+    }
+
+    function playError() {
+      playTone(200, 0.35, 'sawtooth', 0.25);
+    }
+
+    function playPop() {
+      playTone(440, 0.15, 'sine', 0.3);
+    }
+
+    // ── DOM helpers ───────────────────────────────────
+    const letterEl   = document.getElementById('letter-display');
+    const promptEl   = document.getElementById('prompt');
+    const scoreEl    = document.getElementById('score-display');
+    const freeHintEl = document.getElementById('free-hint');
+    const modeBtnEl  = document.getElementById('mode-btn');
+    const starsEl    = document.getElementById('stars-container');
+
+    function setLetter(l) {
+      letterEl.textContent = l;
+    }
+
+    function triggerAnimation(cls) {
+      letterEl.classList.remove('bounce', 'shake', 'pop');
+      // force reflow so re-adding the class fires again
+      void letterEl.offsetWidth;
+      letterEl.classList.add(cls);
+      letterEl.addEventListener('animationend', () => letterEl.classList.remove(cls), { once: true });
+    }
+
+    function flashBackground(cls) {
+      document.body.classList.add(cls);
+      setTimeout(() => document.body.classList.remove(cls), 400);
+    }
+
+    function updateScore() {
+      scoreEl.textContent = `⭐ ${score}`;
+    }
+
+    function burstStars(x, y) {
+      const emojis = ['⭐','🌟','✨','💫'];
+      for (let i = 0; i < 8; i++) {
+        const star = document.createElement('span');
+        star.className = 'star';
+        star.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        const angle = (i / 8) * 2 * Math.PI;
+        const dist = 100 + Math.random() * 100;
+        star.style.left = x + 'px';
+        star.style.top  = y + 'px';
+        star.style.setProperty('--tx', `${Math.cos(angle) * dist}px`);
+        star.style.setProperty('--ty', `${Math.sin(angle) * dist}px`);
+        star.style.animationDelay = (Math.random() * 0.15) + 's';
+        starsEl.appendChild(star);
+        star.addEventListener('animationend', () => star.remove());
+      }
+    }
+
+    // ── Mode toggle ───────────────────────────────────
+    function toggleMode() {
+      mode = (mode === 'hunt') ? 'free' : 'hunt';
+      score = 0;
+      isWaiting = false;
+
+      if (mode === 'hunt') {
+        letterQueue = buildQueue();
+        targetLetter = getNextLetter();
+        setLetter(targetLetter);
+        promptEl.style.display = '';
+        freeHintEl.style.display = 'none';
+        scoreEl.style.display = '';
+        updateScore();
+        modeBtnEl.textContent = '🔤 Letter Hunt';
+        letterEl.style.color = '#fff';
+      } else {
+        setLetter('?');
+        promptEl.style.display = 'none';
+        freeHintEl.style.display = '';
+        scoreEl.style.display = 'none';
+        modeBtnEl.textContent = '🔡 Free Typing';
+        letterEl.style.color = '#fff';
+      }
+    }
+
+    // ── Key handling ──────────────────────────────────
+    const COLORS = [
+      '#FF6B6B','#FFD93D','#6BCB77','#4D96FF',
+      '#FF6FC8','#FF9A3C','#A8FF78','#78DBFF'
+    ];
+    let colorIndex = 0;
+
+    document.addEventListener('keydown', (e) => {
+      if (isWaiting) return;
+      // Only handle letter keys (a-z / A-Z)
+      if (!/^[a-zA-Z]$/.test(e.key)) return;
+
+      const pressed = e.key.toUpperCase();
+
+      isWaiting = true;
+      setTimeout(() => { isWaiting = false; }, DELAY_MS);
+
+      if (mode === 'free') {
+        handleFreeTyping(pressed);
+      } else {
+        handleHunt(pressed);
+      }
+    });
+
+    function handleFreeTyping(letter) {
+      letterEl.style.color = COLORS[colorIndex % COLORS.length];
+      colorIndex++;
+      setLetter(letter);
+      triggerAnimation('pop');
+      playPop();
+    }
+
+    function handleHunt(pressed) {
+      const rect = letterEl.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+
+      if (pressed === targetLetter) {
+        // Correct!
+        score++;
+        updateScore();
+        letterEl.style.color = '#6BCB77';
+        flashBackground('correct');
+        triggerAnimation('bounce');
+        playSuccess();
+        burstStars(cx, cy);
+
+        // Advance to next letter after a short delay
+        setTimeout(() => {
+          targetLetter = getNextLetter();
+          setLetter(targetLetter);
+          letterEl.style.color = '#fff';
+        }, 600);
+      } else {
+        // Wrong
+        letterEl.style.color = '#FF6B6B';
+        flashBackground('incorrect');
+        triggerAnimation('shake');
+        playError();
+        setTimeout(() => {
+          letterEl.style.color = '#fff';
+        }, 500);
+      }
+    }
+
+    // ── Full screen ───────────────────────────────────
+    function goFullScreen() {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+      const fsBtn = document.getElementById('fullscreen-btn');
+      if (document.fullscreenElement) {
+        fsBtn.textContent = '✕ Exit Full Screen';
+        fsBtn.onclick = () => document.exitFullscreen();
+      } else {
+        fsBtn.textContent = '⛶ Full Screen';
+        fsBtn.onclick = goFullScreen;
+      }
+    });
+
+    // ── Init ──────────────────────────────────────────
+    letterQueue = buildQueue();
+    targetLetter = getNextLetter();
+    setLetter(targetLetter);
+    updateScore();
+    scoreEl.style.display = '';
+  </script>
+</body>
+</html>
